@@ -1,4 +1,4 @@
-package com.clepto.fsengine.graphics;
+package com.clepto.fsengine.graphics.lighting;
 
 import org.joml.Vector3f;
 
