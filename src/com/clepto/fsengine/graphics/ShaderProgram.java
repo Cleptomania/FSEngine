@@ -13,6 +13,7 @@ import org.lwjgl.system.MemoryStack;
 
 import com.clepto.fsengine.graphics.lighting.DirectionalLight;
 import com.clepto.fsengine.graphics.lighting.PointLight;
+import com.clepto.fsengine.graphics.lighting.SpotLight;
 
 public class ShaderProgram {
 
@@ -47,6 +48,12 @@ public class ShaderProgram {
 		createUniform(uniformName + ".att.constant");
 		createUniform(uniformName + ".att.linear");
 		createUniform(uniformName + ".att.exponent");
+	}
+	
+	public void createSpotLightUniform(String uniformName) throws Exception {
+		createPointLightUniform(uniformName + ".pl");
+		createUniform(uniformName + ".conedir");
+		createUniform(uniformName + ".cutoff");
 	}
 	
 	public void createDirectionalLightUniform(String uniformName) throws Exception {
@@ -95,6 +102,12 @@ public class ShaderProgram {
 		setUniform(uniformName + ".att.constant", att.getConstant());
 		setUniform(uniformName + ".att.linear", att.getLinear());
 		setUniform(uniformName + ".att.exponent", att.getExponent());
+	}
+	
+	public void setUniform(String uniformName, SpotLight spotLight) {
+		setUniform(uniformName + ".pl", spotLight.getPointLight());
+		setUniform(uniformName + ".conedir", spotLight.getConeDirection());
+		setUniform(uniformName + ".cutoff", spotLight.getCutOff());
 	}
 	
 	public void setUniform(String uniformName, DirectionalLight directionalLight) {
