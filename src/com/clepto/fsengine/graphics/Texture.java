@@ -30,7 +30,7 @@ public class Texture {
 	
 	
 	private static int loadTexture(String fileName) throws Exception {
-		PNGDecoder decoder = new PNGDecoder(Texture.class.getResourceAsStream(fileName));
+		PNGDecoder decoder = new PNGDecoder(Texture.class.getClassLoader().getResourceAsStream(fileName));
 		
 		ByteBuffer buf = ByteBuffer.allocateDirect(4 * decoder.getWidth() * decoder.getHeight());
 		decoder.decode(buf, decoder.getWidth() * 4, Format.RGBA);

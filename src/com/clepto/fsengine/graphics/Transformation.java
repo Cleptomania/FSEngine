@@ -3,7 +3,7 @@ package com.clepto.fsengine.graphics;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
-import com.clepto.fsengine.GameActor;
+import com.clepto.fsengine.scene.actors.Actor;
 
 public class Transformation {
 
@@ -39,7 +39,7 @@ public class Transformation {
         return viewMatrix;
     }
 
-    public Matrix4f getModelViewMatrix(GameActor gameActor, Matrix4f viewMatrix) {
+    public Matrix4f getModelViewMatrix(Actor gameActor, Matrix4f viewMatrix) {
         Vector3f rotation = gameActor.getRotation();
         modelViewMatrix.identity().translate(gameActor.getPosition()).
                 rotateX((float)Math.toRadians(-rotation.x)).
