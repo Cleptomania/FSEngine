@@ -13,7 +13,6 @@ import com.clepto.fsengine.graphics.lighting.SpotLight;
 import com.clepto.fsengine.scene.Scene;
 import com.clepto.fsengine.scene.SceneLight;
 import com.clepto.fsengine.scene.actors.Actor;
-import com.clepto.fsengine.scene.actors.SkyBox;
 import com.clepto.fsengine.util.Utils;
 
 public class Renderer {
@@ -32,8 +31,6 @@ public class Renderer {
 	
 	private ShaderProgram sceneShaderProgram;
 	
-	private ShaderProgram skyboxShaderProgram;
-	
 	private float specularPower;
 	
 	public Renderer() {
@@ -43,24 +40,11 @@ public class Renderer {
 	
 	public void init(Window window) throws Exception {
 		setupGL();
-		setupSkyboxShader();
 		setupSceneShader();
 	}
 	
 	private void setupGL() {
 		glEnable(GL_DEPTH_TEST);
-	}
-	
-	private void setupSkyboxShader() throws Exception {
-		skyboxShaderProgram = new ShaderProgram();
-		skyboxShaderProgram.createVertexShader(Utils.loadResource("shaders/skybox_vertex.vs"));
-		skyboxShaderProgram.createFragmentShader(Utils.loadResource("shaders/skybox_fragment.fs"));
-		skyboxShaderProgram.link();
-		
-		skyboxShaderProgram.createUniform("projectionMatrix");
-		skyboxShaderProgram.createUniform("modelViewMatrix");
-		skyboxShaderProgram.createUniform("texture_sampler");
-		skyboxShaderProgram.createUniform("ambientLight");
 	}
 	
 	private void setupSceneShader() throws Exception {
@@ -92,27 +76,6 @@ public class Renderer {
 		}
 		
 		renderScene(window, camera, scene);
-		
-		renderSkybox(window, camera, scene);
-	}
-	
-	private void renderSkybox(Window window, Camera camera, Scene scene) {
-		skyboxShaderProgram.bind();
-		
-		skyboxShaderProgram.setUniform("texture_sampler", 0);
-		
-		Matrix4f projectionMatrix = transformation.getProjectionMatrix(FOV, window.getWidth(), window.getHeight(), Z_NEAR, Z_FAR);
-		skyboxShaderProgram.setUniform("projectionMatrix", projectionMatrix);
-		SkyBox skybox = scene.getSkyBox();
-		Matrix4f viewMatrix = transformation.getViewMatrix(camera);
-		viewMatrix.m30(0);
-		viewMatrix.m31(0);
-		viewMatrix.m32(0);
-		Matrix4f modelViewMatrix = transformation.getModelViewMatrix(skybox, viewMatrix);
-		skyboxShaderProgram.setUniform("modelViewMatrix", modelViewMatrix);
-		skyboxShaderProgram.setUniform("ambientLight", scene.getSceneLight().getAmbientLight());
-		scene.getSkyBox().getMesh().render();
-		skyboxShaderProgram.unbind();
 	}
 	
 	private void renderScene(Window window, Camera camera, Scene scene) {
@@ -174,11 +137,13 @@ public class Renderer {
 			sceneShaderProgram.setUniform("spotLights[" + i + "]", currSpotLight);
 		}
 		
-		DirectionalLight currDirLight = new DirectionalLight(sceneLight.getDirectionalLight());
-		Vector4f dir = new Vector4f(currDirLight.getDirection(), 0);
-		dir.mul(viewMatrix);
-		currDirLight.setDirection(new Vector3f(dir.x, dir.y, dir.z));
-		sceneShaderProgram.setUniform("directionalLight", currDirLight);
+		if (sceneLight.getDirectionalLight() != null) {
+			DirectionalLight currDirLight = new DirectionalLight(sceneLight.getDirectionalLight());
+			Vector4f dir = new Vector4f(currDirLight.getDirection(), 0);
+			dir.mul(viewMatrix);
+			currDirLight.setDirection(new Vector3f(dir.x, dir.y, dir.z));
+			sceneShaderProgram.setUniform("directionalLight", currDirLight);
+		}
 	}
 	
 	public void clear() {
@@ -186,9 +151,6 @@ public class Renderer {
 	}
 	
 	public void cleanup() {
-		if (skyboxShaderProgram != null) {
-			skyboxShaderProgram.cleanup();
-		}
 		if (sceneShaderProgram != null) {
 			sceneShaderProgram.cleanup();
 		}
