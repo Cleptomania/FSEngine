@@ -12,11 +12,11 @@ public class FSEngine implements Runnable {
 	
 	private final Timer timer;
 	
-	private final IGameLogic gameLogic;
+	private final IApplication gameLogic;
 	
 	private final MouseInput mouseInput;
 	
-	public FSEngine(String windowTitle, int width, int height, boolean vSync, IGameLogic gameLogic) throws Exception {
+	public FSEngine(String windowTitle, int width, int height, boolean vSync, IApplication gameLogic) throws Exception {
 		gameLoopThread = new Thread(this, "GAME_LOOP_THREAD");
 		window = new Window(windowTitle, width, height, vSync);
 		mouseInput = new MouseInput();

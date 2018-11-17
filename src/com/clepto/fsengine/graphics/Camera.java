@@ -5,12 +5,11 @@ import org.joml.Vector3f;
 public class Camera {
 
 	private final Vector3f position;
-	
+
 	private final Vector3f rotation;
 	
 	public Camera() {
-		position = new Vector3f(0, 0, 0);
-		rotation = new Vector3f(0, 0, 0);
+		this(new Vector3f(0, 0, 0), new Vector3f(0, 0, 0));
 	}
 	
 	public Camera(Vector3f position, Vector3f rotation) {
@@ -55,5 +54,4 @@ public class Camera {
 		rotation.y += offsetY;
 		rotation.z += offsetZ;
 	}
-	
 }

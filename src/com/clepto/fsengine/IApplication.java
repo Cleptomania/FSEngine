@@ -1,6 +1,6 @@
 package com.clepto.fsengine;
 
-public interface IGameLogic {
+public interface IApplication {
 
 	void init(Window window) throws Exception;
 	
