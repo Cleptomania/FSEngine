@@ -2,17 +2,23 @@ package com.clepto.fsengine.graphics;
 
 import static org.lwjgl.opengl.GL11.*;
 
+import java.util.List;
+import java.util.Map;
+
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
+import com.clepto.fsengine.IHud;
 import com.clepto.fsengine.Window;
 import com.clepto.fsengine.graphics.lighting.DirectionalLight;
 import com.clepto.fsengine.graphics.lighting.PointLight;
 import com.clepto.fsengine.graphics.lighting.SpotLight;
+import com.clepto.fsengine.graphics.shader.ShaderProgram;
 import com.clepto.fsengine.scene.Scene;
 import com.clepto.fsengine.scene.SceneLight;
 import com.clepto.fsengine.scene.actors.Actor;
+import com.clepto.fsengine.scene.actors.SkyBox;
 import com.clepto.fsengine.util.Utils;
 
 public class Renderer {
@@ -31,7 +37,11 @@ public class Renderer {
 	
 	private ShaderProgram sceneShaderProgram;
 	
-	private float specularPower;
+	private ShaderProgram skyboxShaderProgram;
+	
+	private ShaderProgram hudShaderProgram;
+	
+	private final float specularPower;
 	
 	public Renderer() {
 		transformation = new Transformation();
@@ -41,6 +51,8 @@ public class Renderer {
 	public void init(Window window) throws Exception {
 		setupGL();
 		setupSceneShader();
+		setupSkyboxShader();
+		setupHudShader();
 	}
 	
 	private void setupGL() {
@@ -56,6 +68,7 @@ public class Renderer {
 		sceneShaderProgram.createUniform("projectionMatrix");
 		sceneShaderProgram.createUniform("modelViewMatrix");
 		sceneShaderProgram.createUniform("texture_sampler");
+		sceneShaderProgram.createUniform("normalMap");
 		
 		sceneShaderProgram.createMaterialUniform("material");
 		
@@ -64,10 +77,33 @@ public class Renderer {
 		sceneShaderProgram.createPointLightListUniform("pointLights", MAX_POINT_LIGHTS);
 		sceneShaderProgram.createSpotLightListUniform("spotLights", MAX_SPOT_LIGHTS);
 		sceneShaderProgram.createDirectionalLightUniform("directionalLight");
-		
+		sceneShaderProgram.createFogUniform("fog");
 	}
 	
-	public void render(Window window, Camera camera, Scene scene) {
+	private void setupSkyboxShader() throws Exception {
+		skyboxShaderProgram = new ShaderProgram();
+		skyboxShaderProgram.createVertexShader(Utils.loadResource("shaders/sb_vertex.vs"));
+		skyboxShaderProgram.createFragmentShader(Utils.loadResource("shaders/sb_fragment.fs"));
+		skyboxShaderProgram.link();
+		
+		skyboxShaderProgram.createUniform("projectionMatrix");
+		skyboxShaderProgram.createUniform("modelViewMatrix");
+		skyboxShaderProgram.createUniform("texture_sampler");
+		skyboxShaderProgram.createUniform("ambientLight");
+	}
+	
+	private void setupHudShader() throws Exception {
+		hudShaderProgram = new ShaderProgram();
+		hudShaderProgram.createVertexShader(Utils.loadResource("shaders/hud_vertex.vs"));
+		hudShaderProgram.createFragmentShader(Utils.loadResource("shaders/hud_fragment.fs"));
+		hudShaderProgram.link();
+		
+		hudShaderProgram.createUniform("projModelMatrix");
+		hudShaderProgram.createUniform("color");
+		hudShaderProgram.createUniform("hasTexture");
+	}
+	
+	public void render(Window window, Camera camera, Scene scene, IHud hud) {
 		clear();
 		
 		if (window.isResized()) {
@@ -75,29 +111,36 @@ public class Renderer {
 			window.setResized(false);
 		}
 		
+		transformation.updateProjectionMatrix(FOV, window.getWidth(), window.getHeight(), Z_NEAR, Z_FAR);
+		transformation.updateViewMatrix(camera);
+		
 		renderScene(window, camera, scene);
+		renderSkybox(window, camera, scene);
+		renderHud(window, hud);
 	}
 	
 	private void renderScene(Window window, Camera camera, Scene scene) {
 		sceneShaderProgram.bind();
 	
-		Matrix4f projectionMatrix = transformation.getProjectionMatrix(FOV, window.getWidth(), window.getHeight(), Z_NEAR, Z_FAR);
+		Matrix4f projectionMatrix = transformation.getProjectionMatrix();
 		sceneShaderProgram.setUniform("projectionMatrix", projectionMatrix);
 		
-		Matrix4f viewMatrix = transformation.getViewMatrix(camera);
+		Matrix4f viewMatrix = transformation.getViewMatrix();
 		
 		SceneLight sceneLight = scene.getSceneLight();
 		renderLights(viewMatrix, sceneLight);
-	
-		sceneShaderProgram.setUniform("texture_sampler", 0);
 		
-		Actor[] actors = scene.getActors();
-		for (Actor actor : actors) {
-			Mesh mesh = actor.getMesh();
-			Matrix4f modelViewMatrix = transformation.getModelViewMatrix(actor, viewMatrix);
-			sceneShaderProgram.setUniform("modelViewMatrix", modelViewMatrix);
+		sceneShaderProgram.setUniform("texture_sampler", 0);
+		sceneShaderProgram.setUniform("normalMap", 1);
+		sceneShaderProgram.setUniform("fog", scene.getFog());
+		
+		Map<Mesh, List<Actor>> mapMeshes = scene.getMeshes();
+		for (Mesh mesh : mapMeshes.keySet()) {
 			sceneShaderProgram.setUniform("material", mesh.getMaterial());
-			mesh.render();
+			mesh.renderList(mapMeshes.get(mesh), (Actor actor) -> {
+				Matrix4f modelViewMatrix = transformation.buildModelViewMatrix(actor, viewMatrix);
+				sceneShaderProgram.setUniform("modelViewMatrix", modelViewMatrix);
+			});
 		}
 		
 		sceneShaderProgram.unbind();
@@ -146,6 +189,42 @@ public class Renderer {
 		}
 	}
 	
+	private void renderSkybox(Window window, Camera camera, Scene scene) {
+		skyboxShaderProgram.bind();
+		skyboxShaderProgram.setUniform("texture_sampler", 0);
+		
+		Matrix4f projectionMatrix = transformation.getProjectionMatrix();
+		skyboxShaderProgram.setUniform("projectionMatrix", projectionMatrix);
+		SkyBox skyBox = scene.getSkybox();
+		Matrix4f viewMatrix = transformation.getViewMatrix();
+		viewMatrix.m30(0);
+		viewMatrix.m31(0);
+		viewMatrix.m32(0);
+		Matrix4f modelViewMatrix = transformation.buildModelViewMatrix(skyBox, viewMatrix);
+		skyboxShaderProgram.setUniform("modelViewMatrix", modelViewMatrix);
+		skyboxShaderProgram.setUniform("ambientLight", scene.getSceneLight().getAmbientLight());
+		
+		scene.getSkybox().getMesh().render();
+		
+		skyboxShaderProgram.unbind();
+	}
+	
+	private void renderHud(Window window, IHud hud) {
+		hudShaderProgram.bind();
+		
+		Matrix4f ortho = transformation.getOrthoProjectionMatrix(0, window.getWidth(), window.getHeight(), 0);
+		for (Actor actor : hud.getActors()) {
+			Mesh mesh = actor.getMesh();
+			Matrix4f projModelMatrix = transformation.buildOrthoProjModelMatrix(actor, ortho);
+			hudShaderProgram.setUniform("projModelMatrix", projModelMatrix);
+			hudShaderProgram.setUniform("color", actor.getMesh().getMaterial().getAmbientColor());
+			hudShaderProgram.setUniform("hasTexture", actor.getMesh().getMaterial().isTextured() ? 1 : 0);
+			mesh.render();
+		}
+		
+		hudShaderProgram.unbind();
+	}
+	
 	public void clear() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	}
@@ -153,6 +232,12 @@ public class Renderer {
 	public void cleanup() {
 		if (sceneShaderProgram != null) {
 			sceneShaderProgram.cleanup();
+		}
+		if (skyboxShaderProgram != null) {
+			skyboxShaderProgram.cleanup();
+		}
+		if (hudShaderProgram != null) {
+			hudShaderProgram.cleanup();
 		}
 	}
 	

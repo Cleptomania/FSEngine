@@ -1,4 +1,4 @@
-package com.clepto.fsengine.graphics;
+package com.clepto.fsengine.graphics.shader;
 
 import static org.lwjgl.opengl.GL20.*;
 
@@ -11,9 +11,11 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.lwjgl.system.MemoryStack;
 
+import com.clepto.fsengine.graphics.Material;
 import com.clepto.fsengine.graphics.lighting.DirectionalLight;
 import com.clepto.fsengine.graphics.lighting.PointLight;
 import com.clepto.fsengine.graphics.lighting.SpotLight;
+import com.clepto.fsengine.graphics.weather.Fog;
 
 public class ShaderProgram {
 
@@ -82,6 +84,12 @@ public class ShaderProgram {
 		createUniform(uniformName + ".reflectance");
 	}
 	
+	public void createFogUniform(String uniformName) throws Exception {
+		createUniform(uniformName + ".activeFog");
+		createUniform(uniformName + ".color");
+		createUniform(uniformName + ".density");
+	}
+	
 	public void setUniform(String uniformName, Matrix4f value) {
 		try (MemoryStack stack = MemoryStack.stackPush()) {
 			FloatBuffer fb = stack.mallocFloat(16);
@@ -148,6 +156,12 @@ public class ShaderProgram {
 		setUniform(uniformName + ".specular", material.getSpecularColor());
 		setUniform(uniformName + ".hasTexture", material.isTextured() ? 1 : 0);
 		setUniform(uniformName + ".reflectance", material.getReflectance());
+	}
+	
+	public void setUniform(String uniformName, Fog fog) {
+		setUniform(uniformName + ".activeFog", fog.isActive() ? 1 : 0);
+		setUniform(uniformName + ".color", fog.getColor());
+		setUniform(uniformName + ".density", fog.getDensity());
 	}
 	
 	public void createVertexShader(String shaderCode) throws Exception {

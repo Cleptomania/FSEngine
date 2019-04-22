@@ -6,6 +6,7 @@ const int MAX_SPOT_LIGHTS = 5;
 in vec2 outTexCoord;
 in vec3 mvVertexNormal;
 in vec3 mvVertexPos;
+in mat4 outModelViewMatrix;
 
 out vec4 fragColor;
 
@@ -48,13 +49,22 @@ struct Material
     float reflectance;
 };
 
+struct Fog
+{
+    int activeFog;
+    vec3 color;
+    float density;
+};
+
 uniform sampler2D texture_sampler;
+uniform sampler2D normalMap;
 uniform vec3 ambientLight;
 uniform float specularPower;
 uniform Material material;
 uniform PointLight pointLights[MAX_POINT_LIGHTS];
 uniform SpotLight spotLights[MAX_POINT_LIGHTS];
 uniform DirectionalLight directionalLight;
+uniform Fog fog;
 
 vec4 ambientC;
 vec4 diffuseC;
@@ -130,6 +140,17 @@ vec4 calcDirectionalLight(DirectionalLight light, vec3 position, vec3 normal)
     return calcLightColor(light.color, light.intensity, position, normalize(light.direction), normal);
 }
 
+vec4 calcFog(vec3 pos, vec4 color, Fog fog, vec3 ambientLight, DirectionalLight dirLight)
+{
+    vec3 fogColor = fog.color * (ambientLight + dirLight.color * dirLight.intensity);
+    float distance = length(pos);
+    float fogFactor = 1.0 / exp((distance * fog.density) * (distance * fog.density));
+    fogFactor = clamp(fogFactor, 0.0, 1.0);
+
+    vec3 resultColor = mix(fogColor, color.xyz, fogFactor);
+    return vec4(resultColor.xyz, color.w);
+}
+
 void main()
 {
     setupColors(material, outTexCoord);
@@ -150,4 +171,9 @@ void main()
     }
 
     fragColor = ambientC * vec4(ambientLight, 1.0) + diffuseSpecularComp;
+
+    if (fog.activeFog == 1)
+    {
+        fragColor = calcFog(mvVertexPos, fragColor, fog, ambientLight, directionalLight);
+    }
 }

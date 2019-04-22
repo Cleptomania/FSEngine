@@ -10,8 +10,11 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 import org.lwjgl.system.MemoryUtil;
+
+import com.clepto.fsengine.scene.actors.Actor;
 
 public class Mesh {
 
@@ -100,25 +103,51 @@ public class Mesh {
 		return vertexCount;
 	}
 	
-	public void render() {
+	private void initRender() {
 		Texture texture = material.getTexture();
 		if (texture != null) {
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, texture.getId());
 		}
-			
+		
+		Texture normalMap = material.getNormalMap();
+		if (normalMap != null) {
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, normalMap.getId());
+		}
+		
 		glBindVertexArray(getVaoId());
 		glEnableVertexAttribArray(0);
 		glEnableVertexAttribArray(1);
 		glEnableVertexAttribArray(2);
-		
-		glDrawElements(GL_TRIANGLES, getVertexCount(), GL_UNSIGNED_INT, 0);
-		
+	}
+	
+	private void endRender() {
 		glDisableVertexAttribArray(0);
 		glDisableVertexAttribArray(1);
 		glDisableVertexAttribArray(2);
 		glBindVertexArray(0);
+		
 		glBindTexture(GL_TEXTURE_2D, 0);
+	}
+	
+	public void render() {
+		initRender();
+		
+		glDrawElements(GL_TRIANGLES, getVertexCount(), GL_UNSIGNED_INT, 0);
+		
+		endRender();
+	}
+	
+	public void renderList(List<Actor> actors, Consumer<Actor> consumer) {
+		initRender();
+		
+		for (Actor actor : actors) {
+			consumer.accept(actor);
+			glDrawElements(GL_TRIANGLES, getVertexCount(), GL_UNSIGNED_INT, 0);
+		}
+		
+		endRender();
 	}
 	
 	public void cleanUp() {
@@ -132,6 +161,18 @@ public class Mesh {
 		Texture texture = material.getTexture();
 		if (texture != null) {
 			texture.cleanup();
+		}
+		
+		glBindVertexArray(0);
+		glDeleteVertexArrays(vaoId);
+	}
+	
+	public void deleteBuffers() {
+		glDisableVertexAttribArray(0);
+		
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		for (int vboId : vboIdList) {
+			glDeleteBuffers(vboId);
 		}
 		
 		glBindVertexArray(0);
